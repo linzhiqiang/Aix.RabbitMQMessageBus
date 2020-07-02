@@ -15,7 +15,7 @@ namespace Aix.RabbitMQMessageBus
     /// <summary>
     /// rabbitMQ实现发布订阅模式
     /// </summary>
-    public class RabbitMQMessageBus : IMessageBus
+    public class RabbitMQMessageBus : IRabbitMQMessageBus
     {
         private IServiceProvider _serviceProvider;
         private ILogger<RabbitMQMessageBus> _logger;

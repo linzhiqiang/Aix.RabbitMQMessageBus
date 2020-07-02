@@ -15,7 +15,7 @@ namespace Aix.RabbitMQMessageBus
             services
                .AddSingleton<RabbitMQMessageBusOptions>(options)
                .AddSingleton(connection)
-               .AddSingleton<IMessageBus, RabbitMQMessageBus>();
+               .AddSingleton<IRabbitMQMessageBus, RabbitMQMessageBus>();
 
             return services;
         }
