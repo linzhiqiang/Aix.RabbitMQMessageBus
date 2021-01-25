@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System;
+using System.Collections.Generic;
 
 namespace Aix.RabbitMQMessageBus.Impl
 {
@@ -14,7 +15,6 @@ namespace Aix.RabbitMQMessageBus.Impl
 
         IConnection _connection;
         IModel _channel;
-        IBasicProperties _basicProperties;
         public RabbitMQProducer(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
@@ -27,18 +27,27 @@ namespace Aix.RabbitMQMessageBus.Impl
 
             if (_options.ConfirmSelect) _channel.ConfirmSelect();
 
-            _basicProperties = _channel.CreateBasicProperties();
-            _basicProperties.ContentType = "text/plain";
-            _basicProperties.DeliveryMode = 2;
         }
+
+        private IBasicProperties CreateBasicProperties()
+        { 
+        var basicProperties = _channel.CreateBasicProperties();
+            basicProperties = _channel.CreateBasicProperties();
+            basicProperties.ContentType = "text/plain";
+            basicProperties.DeliveryMode = 2;
+            basicProperties.Headers = new Dictionary<string, object>();
+            return basicProperties;
+        }
+
         public bool ProduceAsync(string topic, byte[] data)
         {
             var exchange = Helper.GeteExchangeName(topic);
             var routingKey = Helper.GeteRoutingKey(topic,"");
+            var basicProperties = CreateBasicProperties();
 
             _channel.BasicPublish(exchange: exchange,
                                               routingKey: routingKey,
-                                              basicProperties: _basicProperties,
+                                              basicProperties: basicProperties,
                                               body: data);
 
             var isOk = true;
@@ -56,12 +65,15 @@ namespace Aix.RabbitMQMessageBus.Impl
                 return ProduceAsync(topic, data);
             }
             var exchange = Helper.GeteDelayExchangeName(_options);
-            var delayTopic = Helper.GetDelayTopic(_options,delay);
+            var delayTopic = Helper.GetDelayTopic(_options);
             var routingKey = Helper.GeteRoutingKey(delayTopic,"");
-        
+
+            var basicProperties = CreateBasicProperties();
+            basicProperties.Headers.Add("x-delay", (int)delay.TotalMilliseconds);  //对于生产者 只需这里设置延迟时间即可 单位是毫秒
+
             _channel.BasicPublish(exchange: exchange,
                                               routingKey: routingKey,
-                                              basicProperties: _basicProperties,
+                                              basicProperties: basicProperties,
                                               body: data);
 
             var isOk = true;
@@ -75,12 +87,13 @@ namespace Aix.RabbitMQMessageBus.Impl
 
         public bool ErrorReProduceAsync(string topic, string groupId, byte[] data)
         {
-            var exchange = Helper.GetErrorReEnqueneExchangeName(topic);
+            var exchange = Helper.GetErrorReEnqueneExchangeName(topic); //错误重试的任务 进入的交换器(根据groupid进入对应的队列)
             var routingKey = Helper.GeteRoutingKey(topic, groupId);
+            var basicProperties = CreateBasicProperties();
 
             _channel.BasicPublish(exchange: exchange,
                                               routingKey: routingKey,
-                                              basicProperties: _basicProperties,
+                                              basicProperties: basicProperties,
                                               body: data);
 
             var isOk = true;

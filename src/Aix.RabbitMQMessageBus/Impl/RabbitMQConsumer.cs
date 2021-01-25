@@ -99,7 +99,9 @@ namespace Aix.RabbitMQMessageBus.Impl
             //绑定队列到重试交换器上
             _channel.QueueBind(queue, errorReEnqueneExchangeName, routingKey);
 
-            var prefetchCount = _options.ManualCommitBatch;  //最大值：ushort.MaxValue
+            var prefetchCount =  _options.ManualCommitBatch;  //最大值：ushort.MaxValue
+            prefetchCount =(ushort) (prefetchCount > 100 ? prefetchCount : 100);
+            //参数名含义prefetchSize批量取的消息的总大小，0为不限制prefetchCount消费完prefetchCount条（prefetchCount条消息被ack）才再次推送globalglobal为true表示对channel进行限制，否则对每个消费者进行限制，因为一个channel允许有多个消费者
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);//EventingBasicConsumer 同步
 
@@ -156,7 +158,7 @@ namespace Aix.RabbitMQMessageBus.Impl
                 {
                     _producer.ProduceDelayAsync(data.Type, delayData, delay);
                 }
-                else
+                else //立即重试的情况
                 {
                     _producer.ErrorReProduceAsync(data.Type, data.ErrorGroupId, delayData);
                 }

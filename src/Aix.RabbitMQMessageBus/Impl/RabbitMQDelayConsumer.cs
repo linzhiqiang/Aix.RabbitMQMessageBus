@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Aix.RabbitMQMessageBus.Impl
 {
+    /// <summary>
+    /// 延迟队列插件 实现 请安装插件
+    /// </summary>
     internal class RabbitMQDelayConsumer : IRabbitMQDelayConsumer
     {
         private IServiceProvider _serviceProvider;
@@ -44,58 +47,56 @@ namespace Aix.RabbitMQMessageBus.Impl
 
         private void CreateDelayExchangeAndQueue()
         {
-            var exchange = Helper.GeteDelayExchangeName(_options);
-            //定义交换器
-            _channel.ExchangeDeclare(
-               exchange: exchange,
-               type: ExchangeType.Direct,
-               durable: true,
-                autoDelete: false,
-                arguments: null
-               );
-
-            foreach (var item in _options.GetDelayQueueConfig())
-            {
-                var delayMillTime = item.Key * 1000;
-
-                var delayTopic = Helper.GetDelayTopic(_options, item.Value);
-                var routingKey = Helper.GeteRoutingKey(delayTopic, "");
-                var queue = delayTopic;
-
-                var arguments = new Dictionary<string, object>();
-                arguments.Add("x-message-ttl", delayMillTime);//毫秒   每个元素的有效期
-                arguments.Add("x-dead-letter-exchange", Helper.GetDelayConsumerExchange(_options)); //指定一个死信交换器
-                //定义队列
-                _channel.QueueDeclare(queue: queue,
-                                         durable: true,
-                                         exclusive: false,
-                                         autoDelete: false,
-                                         arguments: arguments);
-
-                //绑定交换器到队列
-                _channel.QueueBind(queue, exchange, routingKey);
-            }
-        }
-        public Task Subscribe()
-        {
-            _isStart = true;
-            CreateDelayExchangeAndQueue();
-
-            //死信交换器和队列定义和绑定
-            var exchange = Helper.GetDelayConsumerExchange(_options);
-            var topic = Helper.GetDelayConsumerQueue(_options);
-            var routingKey = Helper.GeteRoutingKey(topic, "");
-            var queue = topic;
-
+            //var exchange = Helper.GeteDelayExchangeName(_options);
+            var exchangeArguments = new Dictionary<string, object>();
+            exchangeArguments.Add("x-delayed-type", "fanout");  //分发类型在这类设置 fanout direct topic
+            var exchange = "my-delayed-exchange";
             //定义交换器
             _channel.ExchangeDeclare(
                exchange: exchange,
                type: ExchangeType.Fanout,
                durable: true,
                 autoDelete: false,
-                arguments: null
+                arguments: exchangeArguments
                );
-            //定义死信队列
+
+            var delayTopic = Helper.GetDelayTopic(_options);
+            var routingKey = Helper.GeteRoutingKey(delayTopic, "");
+            var queue = delayTopic;
+
+           
+            //定义队列
+            _channel.QueueDeclare(queue: queue,
+                                     durable: true,
+                                     exclusive: false,
+                                     autoDelete: false,
+                                     arguments: null);
+
+            //绑定交换器到队列
+            _channel.QueueBind(queue, exchange, routingKey);
+        }
+
+        public Task Subscribe()
+        {
+            _isStart = true;
+            var exchange = Helper.GeteDelayExchangeName(_options);
+            var exchangeArguments = new Dictionary<string, object>();
+            exchangeArguments.Add("x-delayed-type", "fanout");  //分发类型在这类设置 fanout direct topic
+            //定义交换器
+            _channel.ExchangeDeclare(
+               exchange: exchange,
+               type: "x-delayed-message",//延迟队列 这里写死 x-delayed-message
+               durable: true,
+                autoDelete: false,
+                arguments: exchangeArguments
+               );
+
+            var delayTopic = Helper.GetDelayTopic(_options);
+            var routingKey = Helper.GeteRoutingKey(delayTopic, "");
+            var queue = delayTopic;
+
+
+            //定义队列
             _channel.QueueDeclare(queue: queue,
                                      durable: true,
                                      exclusive: false,
@@ -106,7 +107,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             _channel.QueueBind(queue, exchange, routingKey);
 
             //消费死信队列的任务
-            var prefetchCount = (ushort)ManualCommitBatch;// _options.ManualCommitBatch;  //最大值：ushort.MaxValue
+            var prefetchCount = ushort.MaxValue;// (ushort)ManualCommitBatch;// _options.ManualCommitBatch;  //最大值：ushort.MaxValue
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);// EventingBasicConsumer
             consumer.Received += Received;
@@ -146,7 +147,6 @@ namespace Aix.RabbitMQMessageBus.Impl
             var delayTime = TimeSpan.FromMilliseconds(delayMessage.ExecuteTimeStamp - DateUtils.GetTimeStamp(DateTime.Now));
             if (delayTime > TimeSpan.Zero)
             {//继续延迟
-                var delayTopic = Helper.GetDelayTopic(_options, delayTime);
                 _producer.ProduceDelayAsync(delayMessage.Type, data, delayTime);
             }
             else

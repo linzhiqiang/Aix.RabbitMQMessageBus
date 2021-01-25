@@ -91,7 +91,7 @@ namespace Aix.RabbitMQMessageBus
                 consumer.OnMessage += async (result) =>
                {
                    var obj = _options.Serializer.Deserialize<T>(result.Data);
-                  return  await handler(obj);
+                   return await handler(obj);
                };
                 await consumer.Subscribe(topic, groupId, cancellationToken);
             }
@@ -125,7 +125,9 @@ namespace Aix.RabbitMQMessageBus
                 _isInitDelayQueue = true;
             }
 
+            // _delayQueueConsumer = new RabbitMQDelayConsumer(this._serviceProvider, this._producer);
             _delayQueueConsumer = new RabbitMQDelayConsumer(this._serviceProvider, this._producer);
+
             _delayQueueConsumer.Subscribe();
 
         }

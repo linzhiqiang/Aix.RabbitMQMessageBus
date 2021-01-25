@@ -9,23 +9,7 @@ namespace Aix.RabbitMQMessageBus
     public class RabbitMQMessageBusOptions
     {
         private int[] DefaultRetryStrategy = new int[] { 1, 5, 10, 30, 60, 2 * 60, 2 * 60, 2 * 60, 5 * 60, 5 * 60 };
-        /// <summary>
-        /// 默认延迟队列 延迟时间配置  （秒，延迟队列名称后缀）
-        /// </summary>
-        private static Dictionary<int, string> DefaultDelayQueueConfig = new Dictionary<int, string>
-        {
-             { (int)TimeSpan.FromSeconds(1).TotalSeconds,"1s"},
-             { (int)TimeSpan.FromSeconds(2).TotalSeconds,"2s"},
-             { (int)TimeSpan.FromSeconds(3).TotalSeconds,"3s"},
-             { (int)TimeSpan.FromSeconds(4).TotalSeconds,"4s"},
-            { (int)TimeSpan.FromSeconds(5).TotalSeconds,"5s"},
-            { (int)TimeSpan.FromSeconds(30).TotalSeconds,"30s"},
-            { (int)TimeSpan.FromMinutes(1).TotalSeconds,"1m"},
-            { (int)TimeSpan.FromMinutes(10).TotalSeconds,"10m"},
-            { (int)TimeSpan.FromMinutes(30).TotalSeconds,"30m"},
-            { (int)TimeSpan.FromHours(1).TotalSeconds,"1h"},
-            { (int)TimeSpan.FromDays(1).TotalSeconds,"1d"},
-        };
+        
         public RabbitMQMessageBusOptions()
         {
             //Port = 5672;
@@ -77,12 +61,6 @@ namespace Aix.RabbitMQMessageBus
 
         public Dictionary<int, string> DelayQueueConfig { get; set; }
 
-
-        public Dictionary<int, string> GetDelayQueueConfig()
-        {
-            if (DelayQueueConfig == null || DelayQueueConfig.Count == 0) return DefaultDelayQueueConfig;
-            return DelayQueueConfig;
-        }
 
         /// <summary>
         /// 最大错误重试次数 默认10次

@@ -53,39 +53,10 @@ namespace Aix.RabbitMQMessageBus
             return $"{options.TopicPrefix }delay-consumer-queue";
         }
 
-        public static List<string> GetDelayTopicList(RabbitMQMessageBusOptions options)
+
+        public static string GetDelayTopic(RabbitMQMessageBusOptions options)
         {
-            List<string> delayTopics = new List<string>();
-            foreach (var item in options.GetDelayQueueConfig())
-            {
-                var temp = GetDelayTopic(options, item.Value);
-                delayTopics.Add(temp);
-            }
-
-            return delayTopics;
-        }
-        public static string GetDelayTopic(RabbitMQMessageBusOptions options, TimeSpan delay)
-        {
-            var dealySecond = (int)delay.TotalSeconds;
-
-            var keys = options.GetDelayQueueConfig().Keys.ToList();
-
-            //for (int i = 0; i < keys.Count; i++)
-            for (int i = keys.Count-1; i >=0; i--)
-            {
-                if (dealySecond > keys[i])
-                {
-                    return GetDelayTopic(options, options.GetDelayQueueConfig()[keys[i]]);
-                }
-            }
-
-            return GetDelayTopic(options, options.GetDelayQueueConfig()[keys[0]]);
-
-        }
-
-        public static string GetDelayTopic(RabbitMQMessageBusOptions options, string postfix)
-        {
-            return $"{options.TopicPrefix }delay-queue{postfix}";
+            return $"{options.TopicPrefix }delay-queue";
         }
 
         #endregion
@@ -99,7 +70,7 @@ namespace Aix.RabbitMQMessageBus
         /// <returns></returns>
         public static string GetErrorReEnqueneExchangeName(string topic)
         {
-            return $"{topic}-reenqueue-exchange";
+            return $"{topic}-error-exchange";
         }
 
         #endregion

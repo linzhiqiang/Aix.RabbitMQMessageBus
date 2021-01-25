@@ -56,8 +56,8 @@ namespace RabbitMQMessageBusSample.HostedService
                             Content = $"我是内容_{i}",
                             CreateTime = DateTime.Now
                         };
-                        await _messageBus.PublishAsync(messageData);
-                        //await _messageBus.PublishDelayAsync(messageData,TimeSpan.FromSeconds(8));
+                       // await _messageBus.PublishAsync(messageData);
+                        await _messageBus.PublishDelayAsync(messageData,TimeSpan.FromSeconds(7));
                         _logger.LogInformation($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff")}生产数据：MessageId={messageData.MessageId}");
 
                     }
