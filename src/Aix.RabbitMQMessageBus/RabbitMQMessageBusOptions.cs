@@ -35,6 +35,11 @@ namespace Aix.RabbitMQMessageBus
         public string TopicPrefix { get; set; }
 
         /// <summary>
+        /// channel对象池大小
+        /// </summary>
+        public int ChannelPoolSize { get; set; } = 10;
+
+        /// <summary>
         /// 自定义序列化，默认为MessagePack
         /// </summary>
         public ISerializer Serializer { get; set; }

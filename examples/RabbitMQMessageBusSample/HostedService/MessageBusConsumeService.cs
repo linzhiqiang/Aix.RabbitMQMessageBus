@@ -21,14 +21,19 @@ namespace RabbitMQMessageBusSample.HostedService
             _messageBus = messageBus;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public  Task StartAsync(CancellationToken cancellationToken)
         {
-            List<Task> taskList = new List<Task>();
+            Task.Run(async ()=>{
+                await Task.Delay(1000);
+                List<Task> taskList = new List<Task>();
 
-            taskList.Add(Subscribe(cancellationToken));
-           // taskList.Add(SubscribeGroup(cancellationToken));
+                taskList.Add(Subscribe(cancellationToken));
+                taskList.Add(SubscribeGroup(cancellationToken));
 
-            await Task.WhenAll(taskList.ToArray());
+                await Task.WhenAll(taskList.ToArray());
+            });
+
+            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -44,7 +49,7 @@ namespace RabbitMQMessageBusSample.HostedService
                 await _messageBus.SubscribeAsync<BusinessMessage>(async (message) =>
                 {
                     var current = Interlocked.Increment(ref Count);
-                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff")}消费--1--数据：MessageId={message.MessageId},Content={message.Content},count={current}");
+                    _logger.LogInformation($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff")}消费--1--数据：MessageId={message.MessageId},Content={message.Content},count={current}");
                     await Task.CompletedTask;
                     return true;
                 }, null, cancellationToken);
