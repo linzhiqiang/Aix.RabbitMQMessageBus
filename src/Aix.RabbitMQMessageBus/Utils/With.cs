@@ -22,6 +22,19 @@ namespace Aix.RabbitMQMessageBus.Utils
             }
         }
 
+        public static void NoException(Action action)
+        {
+            if (action == null) return;
+            try
+            {
+                action();
+            }
+            catch 
+            {
+              
+            }
+        }
+
         public static async Task NoException(ILogger logger, Func<Task> action, string message)
         {
             if (action == null) return;

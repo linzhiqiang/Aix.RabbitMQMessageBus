@@ -1,4 +1,5 @@
 ﻿using Aix.RabbitMQMessageBus;
+using Aix.RabbitMQMessageBus.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using System;
@@ -11,6 +12,7 @@ namespace Aix.RabbitMQMessageBus
     {
         public static IServiceCollection AddRabbitMQMessageBus(this IServiceCollection services, RabbitMQMessageBusOptions options)
         {
+            ValidOptions(options);
             var connection = CreateConnection(options);
             services
                .AddSingleton<RabbitMQMessageBusOptions>(options)
@@ -45,6 +47,15 @@ namespace Aix.RabbitMQMessageBus
         private static void Connection_CallbackException(object sender, global::RabbitMQ.Client.Events.CallbackExceptionEventArgs e)
         {
 
+        }
+
+        private static void ValidOptions(RabbitMQMessageBusOptions options)
+        {
+            if (options.AutoAck == false)
+            {
+                AssertUtils.IsTrue(options.ManualCommitBatch >=1, "ManualCommitBatch大于等于1");
+            }
+            AssertUtils.IsTrue(options.DefaultConsumerThreadCount >=1, "DefaultConsumerThreadCount大于等于1");
         }
     }
 }

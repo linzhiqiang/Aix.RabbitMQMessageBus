@@ -36,11 +36,28 @@ namespace Aix.RabbitMQMessageBus.Impl
 
             _connection = _serviceProvider.GetService<IConnection>();
             _channel = _connection.CreateModel();
-
+            _channel.ModelShutdown += _channel_ModelShutdown;
             _autoAck = _options.AutoAck;
         }
 
-        public event Func<RabbitMessageBusData, Task> OnMessage;
+        private Task Consumer_ConsumerCancelled(object sender, ConsumerEventArgs @event)
+        {
+            // _logger.LogInformation($"RabbitMQ ConsumerCancelled");
+            return Task.CompletedTask;
+        }
+
+        private void _channel_ModelShutdown(object sender, ShutdownEventArgs e)
+        {
+            //_logger.LogInformation($"RabbitMQ channel  shutdown，reason:{e.ReplyText}");
+        }
+
+        private Task Consumer_Shutdown(object sender, ShutdownEventArgs e)
+        {
+            _logger.LogInformation($"RabbitMQ关闭消费者，reason:{e.ReplyText}");
+            return Task.CompletedTask;
+        }
+
+        public event Func<RabbitMessageBusData, Task<bool>> OnMessage;
 
         public Task Subscribe(string topic, string groupId, CancellationToken cancellationToken)
         {
@@ -59,7 +76,7 @@ namespace Aix.RabbitMQMessageBus.Impl
                 arguments: null
                );
 
-            //定义一个失败重试入口的交换器
+            //定义一个失败重试入口的交换器  重试任务交换器
             var errorReEnqueneExchangeName = Helper.GetErrorReEnqueneExchangeName(topic);
             _channel.ExchangeDeclare(
                exchange: errorReEnqueneExchangeName,
@@ -79,13 +96,15 @@ namespace Aix.RabbitMQMessageBus.Impl
 
             //绑定交换器到队列
             _channel.QueueBind(queue, exchange, routingKey);
+            //绑定队列到重试交换器上
             _channel.QueueBind(queue, errorReEnqueneExchangeName, routingKey);
 
             var prefetchCount = _options.ManualCommitBatch;  //最大值：ushort.MaxValue
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);//EventingBasicConsumer 同步
-           
+
             _logger.LogInformation("开始消费数据...");
+            consumer.ConsumerCancelled += Consumer_ConsumerCancelled;
             consumer.Received += Consumer_Received;
             consumer.Shutdown += Consumer_Shutdown;
 
@@ -93,12 +112,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             return Task.CompletedTask;
         }
 
-        private Task Consumer_Shutdown(object sender, ShutdownEventArgs e)
-        {
-            _logger.LogInformation($"RabbitMQ关闭消费者，reason:{e.ReplyText}");
-            return Task.CompletedTask;
-        }
-
+      
         private async Task Consumer_Received(object sender, BasicDeliverEventArgs deliverEventArgs)
         {
             if (!_isStart) return; //这里有必要的，关闭时已经手工提交了，由于客户端还有累计消息会继续执行，但是不能确认（连接已关闭）
@@ -113,7 +127,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             }
             catch (Exception ex)
             {
-                _logger.LogError($"rabbitMQ消费接收消息失败, {ex.Message}, {ex.StackTrace}");
+                _logger.LogError(ex,$"rabbitMQ消费接收消息失败");
             }
             finally
             {
@@ -133,7 +147,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             {
                 var delay = TimeSpan.FromSeconds(GetDelaySecond(data.ErrorCount));
                 data.ErrorCount++;
-                data.GroupId = _groupId;
+                data.ErrorGroupId = _groupId;
                 data.ExecuteTimeStamp = DateUtils.GetTimeStamp(DateTime.Now.Add(delay));
 
                 var delayData = _options.Serializer.Serialize(data);
@@ -144,7 +158,7 @@ namespace Aix.RabbitMQMessageBus.Impl
                 }
                 else
                 {
-                    _producer.ErrorReProduceAsync(data.Type, data.GroupId, delayData);
+                    _producer.ErrorReProduceAsync(data.Type, data.ErrorGroupId, delayData);
                 }
             }
         }
@@ -170,15 +184,16 @@ namespace Aix.RabbitMQMessageBus.Impl
             {
                 if (Count > 0)
                 {
-                    // _logger.LogInformation("关闭时确认剩余的未确认消息"+ _currentDeliveryTag);
-                    With.NoException(_logger, () => { _channel.BasicAck(_currentDeliveryTag, true); }, "关闭时确认剩余的未确认消息");
+                    _logger.LogInformation($"关闭时确认剩余的未确认消息{_currentDeliveryTag},{Count}");
+                    With.NoException(() => { _channel.BasicAck(_currentDeliveryTag, true); });
+                    Count = 0;
                 }
             }
             else //按照批量确认
             {
                 if (Count % _options.ManualCommitBatch == 0)
                 {
-                    With.NoException(_logger, () => { _channel.BasicAck(_currentDeliveryTag, true); }, "批量手工确认消息");
+                    With.NoException(() => { _channel.BasicAck(_currentDeliveryTag, true); });
                     Count = 0;
                 }
             }
@@ -196,16 +211,12 @@ namespace Aix.RabbitMQMessageBus.Impl
 
             try
             {
-                await OnMessage(obj);
+                isSuccess = await OnMessage(obj);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"rabbitMQ消费失败, topic={obj.Type}，group={obj.GroupId}");
-                if (_options.IsRetry != null)
-                {
-                    var isRetry = await _options.IsRetry(ex);
-                    isSuccess = !isRetry;
-                }
+                _logger.LogError(ex, $"rabbitMQ消费失败, topic={obj.Type}，group={_groupId}");
+                isSuccess = false;
             }
             return isSuccess;
         }

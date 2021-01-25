@@ -46,6 +46,7 @@ namespace RabbitMQMessageBusSample.HostedService
                     var current = Interlocked.Increment(ref Count);
                     _logger.LogInformation($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff")}消费--1--数据：MessageId={message.MessageId},Content={message.Content},count={current}");
                     await Task.CompletedTask;
+                    return true;
                 }, null, cancellationToken);
             }
             catch (Exception ex)
@@ -68,6 +69,7 @@ namespace RabbitMQMessageBusSample.HostedService
                     var current = Interlocked.Increment(ref Count);
                     _logger.LogInformation($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff")}消费--2--数据：MessageId={message.MessageId},Content={message.Content},count={current}");
                     await Task.CompletedTask;
+                    return true;
                 }, subscribeOptions, cancellationToken);
             }
             catch (Exception ex)

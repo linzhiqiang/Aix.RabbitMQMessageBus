@@ -12,7 +12,7 @@ namespace Aix.RabbitMQMessageBus
     {
         Task Subscribe(string topic, string groupId, CancellationToken cancellationToken);
 
-        event Func<RabbitMessageBusData, Task> OnMessage;
+        event Func<RabbitMessageBusData, Task<bool>> OnMessage;
         void Close();
     }
 }

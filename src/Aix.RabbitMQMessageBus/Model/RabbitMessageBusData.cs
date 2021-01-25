@@ -16,6 +16,6 @@ namespace Aix.RabbitMQMessageBus.Model
 
         public int ErrorCount { get; set; }
 
-        public string GroupId { get; set; }
+        public string ErrorGroupId { get; set; }
     }
 }

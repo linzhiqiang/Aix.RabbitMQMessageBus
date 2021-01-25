@@ -59,12 +59,12 @@ namespace Aix.RabbitMQMessageBus.Impl
                 var delayMillTime = item.Key * 1000;
 
                 var delayTopic = Helper.GetDelayTopic(_options, item.Value);
-                var routingKey = Helper.GeteRoutingKey(delayTopic,"");
+                var routingKey = Helper.GeteRoutingKey(delayTopic, "");
                 var queue = delayTopic;
 
                 var arguments = new Dictionary<string, object>();
                 arguments.Add("x-message-ttl", delayMillTime);//毫秒   每个元素的有效期
-                arguments.Add("x-dead-letter-exchange", Helper.GetDelayConsumerExchange(_options));
+                arguments.Add("x-dead-letter-exchange", Helper.GetDelayConsumerExchange(_options)); //指定一个死信交换器
                 //定义队列
                 _channel.QueueDeclare(queue: queue,
                                          durable: true,
@@ -81,9 +81,10 @@ namespace Aix.RabbitMQMessageBus.Impl
             _isStart = true;
             CreateDelayExchangeAndQueue();
 
+            //死信交换器和队列定义和绑定
             var exchange = Helper.GetDelayConsumerExchange(_options);
             var topic = Helper.GetDelayConsumerQueue(_options);
-            var routingKey = Helper.GeteRoutingKey(topic,"");
+            var routingKey = Helper.GeteRoutingKey(topic, "");
             var queue = topic;
 
             //定义交换器
@@ -94,7 +95,7 @@ namespace Aix.RabbitMQMessageBus.Impl
                 autoDelete: false,
                 arguments: null
                );
-            //定义队列
+            //定义死信队列
             _channel.QueueDeclare(queue: queue,
                                      durable: true,
                                      exclusive: false,
@@ -104,6 +105,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             //绑定交换器到队列
             _channel.QueueBind(queue, exchange, routingKey);
 
+            //消费死信队列的任务
             var prefetchCount = (ushort)ManualCommitBatch;// _options.ManualCommitBatch;  //最大值：ushort.MaxValue
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);// EventingBasicConsumer
@@ -119,7 +121,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             if (!_isStart) return; //这里有必要的，关闭时已经手工提交了，由于客户端还有累计消息会继续执行，但是不能确认（连接已关闭）
             try
             {
-               await Handler(deliverEventArgs.Body.ToArray());
+                await Handler(deliverEventArgs.Body.ToArray());
             }
             catch (Exception ex)
             {
@@ -153,9 +155,9 @@ namespace Aix.RabbitMQMessageBus.Impl
                 {
                     _producer.ProduceAsync(delayMessage.Type, data);
                 }
-                else
+                else //由于错误，需要重试的任务
                 {
-                    _producer.ErrorReProduceAsync(delayMessage.Type, delayMessage.GroupId, data);
+                    _producer.ErrorReProduceAsync(delayMessage.Type, delayMessage.ErrorGroupId, data);
                 }
             }
             return Task.CompletedTask;
@@ -179,7 +181,8 @@ namespace Aix.RabbitMQMessageBus.Impl
                 if (Count > 0)
                 {
                     // _logger.LogInformation("关闭时确认剩余的未确认消息"+ _currentDeliveryTag);
-                    With.NoException(_logger, () => { _channel.BasicAck(_currentDeliveryTag, true); }, "关闭时确认剩余的未确认消息");
+                    With.NoException(() => { _channel.BasicAck(_currentDeliveryTag, true); });
+                    Count = 0;
                 }
             }
             else //按照批量确认
@@ -187,7 +190,7 @@ namespace Aix.RabbitMQMessageBus.Impl
                 //if (Count % _options.ManualCommitBatch == 0)
                 if (Count % ManualCommitBatch == 0)
                 {
-                    With.NoException(_logger, () => { _channel.BasicAck(_currentDeliveryTag, true); }, "批量手工确认消息");
+                    With.NoException(() => { _channel.BasicAck(_currentDeliveryTag, true); });
                     Count = 0;
                 }
             }

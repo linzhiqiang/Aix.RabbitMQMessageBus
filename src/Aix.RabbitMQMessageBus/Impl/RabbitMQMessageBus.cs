@@ -64,7 +64,7 @@ namespace Aix.RabbitMQMessageBus
             }
         }
 
-        public async Task SubscribeAsync<T>(Func<T, Task> handler, SubscribeOptions subscribeOptions = null, CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        public async Task SubscribeAsync<T>(Func<T, Task<bool>> handler, SubscribeOptions subscribeOptions = null, CancellationToken cancellationToken = default(CancellationToken)) where T : class
         {
             InitDelayQueue();
             var topic = GetTopic(typeof(T));
@@ -91,7 +91,7 @@ namespace Aix.RabbitMQMessageBus
                 consumer.OnMessage += async (result) =>
                {
                    var obj = _options.Serializer.Deserialize<T>(result.Data);
-                   await handler(obj);
+                  return  await handler(obj);
                };
                 await consumer.Subscribe(topic, groupId, cancellationToken);
             }

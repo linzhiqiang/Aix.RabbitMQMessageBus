@@ -35,7 +35,7 @@ namespace Aix.RabbitMQMessageBus
         /// <param name="context"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task SubscribeAsync<T>(Func<T, Task> handler, SubscribeOptions subscribeOptions = null, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
+        Task SubscribeAsync<T>(Func<T, Task<bool>> handler, SubscribeOptions subscribeOptions = null, CancellationToken cancellationToken = default(CancellationToken)) where T : class;
 
     }
 }
