@@ -54,8 +54,11 @@ namespace Aix.RabbitMQMessageBus
             if (options.AutoAck == false)
             {
                 AssertUtils.IsTrue(options.ManualCommitBatch >=1, "ManualCommitBatch大于等于1");
+                AssertUtils.IsTrue(options.PrefetchCount >=1 , "PrefetchCount大于等于1");
+                AssertUtils.IsTrue(options.PrefetchCount >= options.ManualCommitBatch, "PrefetchCount大于等于ManualCommitBatch");
             }
             AssertUtils.IsTrue(options.DefaultConsumerThreadCount >=1, "DefaultConsumerThreadCount大于等于1");
+
         }
     }
 }

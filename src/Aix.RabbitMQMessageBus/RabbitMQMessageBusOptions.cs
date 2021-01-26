@@ -64,6 +64,13 @@ namespace Aix.RabbitMQMessageBus
         /// </summary>
         public ushort ManualCommitBatch { get; set; } = 1;
 
+        /// <summary>
+        /// 会告诉RabbitMQ不要同时给一个消费者推送多余n个消息， 一旦有n个消息还没有ack，则该consumer将block调，知道有消息ack
+        /// prefetch_count参数仅仅在 basic.consume的 autoAck参数设置为 false的前提下才生效，也就是不能使用自动确认，自动确认的消息没有办法限流。
+        /// https://my.oschina.net/throwable/blog/4678003
+        /// </summary>
+        public ushort PrefetchCount { get; set; } = 250;
+
         public Dictionary<int, string> DelayQueueConfig { get; set; }
 
 

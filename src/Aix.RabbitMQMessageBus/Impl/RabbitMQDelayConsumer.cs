@@ -107,7 +107,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             _channel.QueueBind(queue, exchange, routingKey);
 
             //消费死信队列的任务
-            var prefetchCount = ushort.MaxValue;// (ushort)ManualCommitBatch;// _options.ManualCommitBatch;  //最大值：ushort.MaxValue
+            var prefetchCount = _options.PrefetchCount ; // (ushort)ManualCommitBatch;// _options.ManualCommitBatch;  //最大值：ushort.MaxValue
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);// EventingBasicConsumer
             consumer.Received += Received;

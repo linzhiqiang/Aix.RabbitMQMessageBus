@@ -99,8 +99,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             //绑定队列到重试交换器上
             _channel.QueueBind(queue, errorReEnqueneExchangeName, routingKey);
 
-            var prefetchCount =  _options.ManualCommitBatch;  //最大值：ushort.MaxValue
-            prefetchCount =(ushort) (prefetchCount > 100 ? prefetchCount : 100);
+            var prefetchCount = _options.PrefetchCount;  //最大值：ushort.MaxValue
             //参数名含义prefetchSize批量取的消息的总大小，0为不限制prefetchCount消费完prefetchCount条（prefetchCount条消息被ack）才再次推送globalglobal为true表示对channel进行限制，否则对每个消费者进行限制，因为一个channel允许有多个消费者
             _channel.BasicQos(0, prefetchCount, false); //客户端最多保留这么多条未确认的消息 只有autoack=false 有用
             var consumer = new AsyncEventingBasicConsumer(_channel);//EventingBasicConsumer 同步
@@ -114,7 +113,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             return Task.CompletedTask;
         }
 
-      
+
         private async Task Consumer_Received(object sender, BasicDeliverEventArgs deliverEventArgs)
         {
             if (!_isStart) return; //这里有必要的，关闭时已经手工提交了，由于客户端还有累计消息会继续执行，但是不能确认（连接已关闭）
@@ -129,7 +128,7 @@ namespace Aix.RabbitMQMessageBus.Impl
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex,$"rabbitMQ消费接收消息失败");
+                _logger.LogError(ex, $"rabbitMQ消费接收消息失败");
             }
             finally
             {
